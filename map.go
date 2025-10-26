@@ -266,7 +266,7 @@ func (m *Map[K, V]) Load(key K) (value V, ok bool) {
 	hash := maphash.Comparable(table.seed, key)
 	h1 := h1(hash)
 	h2w := broadcast(h2(hash))
-	bidx := uint64(len(table.buckets)-1) & h1
+	bidx := (h1 >> 32) & uint64(len(table.buckets)-1)
 	b := &table.buckets[bidx]
 	for {
 		metaw := atomic.LoadUint64(&b.meta)
@@ -432,7 +432,8 @@ func (m *Map[K, V]) doCompute(
 		h1 := h1(hash)
 		h2 := h2(hash)
 		h2w := broadcast(h2)
-		bidx := uint64(len(table.buckets)-1) & h1
+		bidx := (h1 >> 32) & uint64(len(table.buckets)-1)
+
 		rootb := &table.buckets[bidx]
 
 		if loadOp != noLoadOp {
@@ -775,7 +776,8 @@ func transferBucketUnsafe[K comparable, V any](
 			if eptr := b.entries[i]; eptr != nil {
 				e := (*entry[K, V])(eptr)
 				hash := maphash.Comparable(destTable.seed, e.key)
-				bidx := uint64(len(destTable.buckets)-1) & h1(hash)
+				bidx := (h1(hash) >> 32) & uint64(len(destTable.buckets)-1)
+
 				destb := &destTable.buckets[bidx]
 				appendToBucket(h2(hash), e, destb)
 				copied++
@@ -800,7 +802,8 @@ func transferBucket[K comparable, V any](
 			if eptr := b.entries[i]; eptr != nil {
 				e := (*entry[K, V])(eptr)
 				hash := maphash.Comparable(destTable.seed, e.key)
-				bidx := uint64(len(destTable.buckets)-1) & h1(hash)
+				bidx := (h1(hash) >> 32) & uint64(len(destTable.buckets)-1)
+
 				destb := &destTable.buckets[bidx]
 				destb.mu.Lock()
 				appendToBucket(h2(hash), e, destb)
